@@ -1,4 +1,5 @@
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect, useCallback } from "react";
+import update from "immutability-helper";
 
 const CardsContext = createContext();
 const CARDS_KEY = "cards";
@@ -9,7 +10,14 @@ function CardsProvider({ children }) {
       {
         id: Date.now(),
         title: "To Do",
-        tasks: [{ id: 1, title: "do something" }],
+        tasks: [
+          {
+            id: 1,
+            title: "Task example",
+            description: "Your description",
+            label: "1",
+          },
+        ],
       },
     ]
   );
@@ -19,25 +27,81 @@ function CardsProvider({ children }) {
     toggleCards(filteredCards);
   };
 
-  const addTask = (id, task) => {
+  const moveCard = useCallback(
+    (dragIndex, hoverIndex) => {
+      toggleCards((prevCards) =>
+        update(prevCards, {
+          $splice: [
+            [dragIndex, 1],
+            [hoverIndex, 0, prevCards[dragIndex]],
+          ],
+        })
+      );
+    },
+    [cards]
+  );
+
+  const addTask = useCallback(
+    async (id, task) => {
+      const newCards = cards.map((card) => {
+        if (card.id === id) {
+          return { ...card, tasks: [...card.tasks, task] };
+        } else return card;
+      });
+      toggleCards(newCards);
+    },
+    [cards, toggleCards]
+  );
+
+  const deleteTask = (id) => {
     const newCards = cards.map((card) => {
-      if (card.id === id) {
-        return { ...card, tasks: [...card.tasks, task] };
+      if (card.tasks.some((task) => task.id === id)) {
+        const taskList = card.tasks.filter((task) => id !== task.id);
+        return { ...card, tasks: taskList };
       } else return card;
     });
     toggleCards(newCards);
   };
 
-  const deleteTask = (id) => {
-    toggleCards(
-      cards.map((card) => {
-        if (card.tasks.some((task) => task.id === id)) {
-          console.log(card.tasks);
-          const taskList = card.tasks.filter((task) => id !== task.id);
+  const moveTask = useCallback(
+    (id, task) => {
+      const newCards = cards.map((card) => {
+        if (card.tasks.some((tasks) => tasks.id === task.id)) {
+          const taskList = card.tasks.filter((tasks) => task.id !== tasks.id);
           return { ...card, tasks: taskList };
         } else return card;
-      })
-    );
+      });
+
+      const newAddedCards = newCards.map((card) => {
+        if (card.id === id) {
+          return { ...card, tasks: [...card.tasks, task] };
+        } else return card;
+      });
+      toggleCards(newAddedCards);
+    },
+    [cards, toggleCards]
+  );
+
+  const updateDescription = (id, description) => {
+    const newCards = cards.map((card) => {
+      if (card.tasks.some((task) => task.id === id)) {
+        const index = card.tasks.findIndex((obj) => obj.id == id);
+        card.tasks[index].description = description;
+        return card;
+      } else return card;
+    });
+    toggleCards(newCards);
+  };
+
+  const addLabel = (id, label) => {
+    const newCards = cards.map((card) => {
+      if (card.tasks.some((task) => task.id === id)) {
+        const index = card.tasks.findIndex((obj) => obj.id == id);
+        card.tasks[index].label = label;
+        return card;
+      } else return card;
+    });
+    toggleCards(newCards);
   };
 
   useEffect(() => {
@@ -46,7 +110,17 @@ function CardsProvider({ children }) {
 
   return (
     <CardsContext.Provider
-      value={{ cards, toggleCards, deleteCard, addTask, deleteTask }}
+      value={{
+        cards,
+        toggleCards,
+        deleteCard,
+        addTask,
+        deleteTask,
+        moveTask,
+        moveCard,
+        updateDescription,
+        addLabel,
+      }}
     >
       {children}
     </CardsContext.Provider>
